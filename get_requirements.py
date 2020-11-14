@@ -2,28 +2,39 @@ from sys import argv
 from os import path
 from glob import glob
 import re
+IGNORE_ENVIRONMENTS = ['env', 'venv']
+
 
 def pretty_list(items):
-	return "\n\t" + "\n\t".join(items)
+    return "\n\t" + "\n\t".join(items)
+
 
 def main():
-    
-    if len(argv) == 1 or not path.isdir(argv[1]):
+
+    # General Clean-up: Remove quotes and add a trailing backslash
+    base = argv[1].rstrip('/').replace('"', '').replace("'", '') + '/'
+
+    if len(base) <= 1 or not path.isdir(base):
         print("Please pass a valid directory")
         return
 
-    source_path = argv[1].rstrip('/') + "/**/*.py"
+    source_path = base + "**/*.py"
+    
     print(f"Reading: {source_path}")
 
     modules = []
 
-    for f in glob(source_path, recursive=True):
+    # Define a quick filter for filtering environments
+    def environment_filter(path_string):
+        return not any(path_string.startswith(path.join(base, e)) for e in IGNORE_ENVIRONMENTS)
+
+    for f in filter(environment_filter, glob(source_path, recursive=True)):
         with open(f) as source_code:
             
             text = source_code.read()
             
-            modules.extend(re.findall("^import (\w+)$", text, re.M))
-            modules.extend(re.findall("^from (\w+) import \w+$", text, re.M))
+            modules.extend(re.findall(r"^import (\w+)$", text, re.M))
+            modules.extend(re.findall(r"^from (\w+) import \w+$", text, re.M))
             # print(f"Reading: {f} Modules: {modules}")
 
     modules = list(set(modules))
